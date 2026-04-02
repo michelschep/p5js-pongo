@@ -17,94 +17,19 @@
       overflow: hidden;
     }
     #game-wrapper {
-      position: relative;
       display: inline-block;
     }
     canvas {
       display: block;
-    }
-    /* Touch control overlay */
-    #touch-controls {
-      position: absolute;
-      bottom: 60px;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      pointer-events: none;
-      padding: 0 10px;
-    }
-    .touch-group {
-      display: flex;
-      gap: 6px;
-      pointer-events: none;
-    }
-    .touch-btn {
-      width: 70px;
-      height: 70px;
-      background: rgba(255, 255, 255, 0.18);
-      border: 2px solid rgba(255, 255, 255, 0.4);
-      border-radius: 12px;
-      color: #fff;
-      font-size: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: all;
-      user-select: none;
-      -webkit-user-select: none;
-      cursor: pointer;
-      touch-action: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      transition: background 0.08s;
-    }
-    .touch-btn:active,
-    .touch-btn.pressed {
-      background: rgba(255, 200, 50, 0.45);
-      border-color: #ffc832;
-    }
-    #btn-shoot {
-      background: rgba(193, 68, 14, 0.28);
-      border-color: rgba(255, 140, 0, 0.6);
-    }
-    #btn-shoot:active,
-    #btn-shoot.pressed {
-      background: rgba(255, 140, 0, 0.55);
     }
   </style>
 </head>
 <body>
   <div id="game-wrapper">
     <!-- p5 canvas injected here -->
-    <div id="touch-controls">
-      <div class="touch-group">
-        <div class="touch-btn" id="btn-left">◀</div>
-        <div class="touch-btn" id="btn-right">▶</div>
-      </div>
-      <div class="touch-group">
-        <div class="touch-btn" id="btn-shoot">🔫</div>
-      </div>
-    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.js"></script>
   <script src="sketch.js"></script>
-  <script>
-    // Wire up touch controls after DOM ready
-    function wireTouch(btnId, keyDown, keyUp) {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
-      btn.addEventListener('touchstart', e => { e.preventDefault(); btn.classList.add('pressed'); window._touchKeys = window._touchKeys || {}; window._touchKeys[keyDown] = true; }, { passive: false });
-      btn.addEventListener('touchend',   e => { e.preventDefault(); btn.classList.remove('pressed'); window._touchKeys = window._touchKeys || {}; window._touchKeys[keyDown] = false; if(keyUp) window._touchKeys[keyUp] = true; setTimeout(()=>{ if(window._touchKeys) window._touchKeys[keyUp]=false; },50); }, { passive: false });
-      btn.addEventListener('touchcancel',e => { e.preventDefault(); btn.classList.remove('pressed'); window._touchKeys = window._touchKeys || {}; window._touchKeys[keyDown] = false; }, { passive: false });
-      // Mouse fallback for desktop testing
-      btn.addEventListener('mousedown', e => { e.preventDefault(); btn.classList.add('pressed'); window._touchKeys = window._touchKeys || {}; window._touchKeys[keyDown] = true; });
-      btn.addEventListener('mouseup',   e => { e.preventDefault(); btn.classList.remove('pressed'); window._touchKeys = window._touchKeys || {}; window._touchKeys[keyDown] = false; });
-    }
-    wireTouch('btn-left',  'LEFT',  null);
-    wireTouch('btn-right', 'RIGHT', null);
-    wireTouch('btn-shoot', 'SHOOT', 'SHOOT');
-  </script>
 </body>
 </html>

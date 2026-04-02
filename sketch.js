@@ -30,6 +30,9 @@ let balloons   = [];
 let bullet     = null;
 
 let keysDown   = {};
+let touchLeft  = false;
+let touchRight = false;
+let touchJustShot = false;
 
 // Audio
 let audioCtx   = null;
@@ -47,8 +50,8 @@ const TILE_COLORS = ['#1E90FF','#C1440E','#FF8C00','#6B8E23','#FAFAFA','#E8B86D'
 
 class Player {
   constructor() {
-    this.w         = 30;
-    this.h         = 50;
+    this.w         = 36;
+    this.h         = 58;
     this.x         = canvasW / 2;
     this.y         = canvasH - FLOOR_H - this.h / 2;
     this.vx        = 0;
@@ -56,8 +59,8 @@ class Player {
   }
 
   update() {
-    const moveLeft  = keysDown[LEFT_ARROW]  || keysDown[65] || (window._touchKeys && window._touchKeys['LEFT']);
-    const moveRight = keysDown[RIGHT_ARROW] || keysDown[68] || (window._touchKeys && window._touchKeys['RIGHT']);
+    const moveLeft  = keysDown[LEFT_ARROW] || keysDown[65] || touchLeft;
+    const moveRight = keysDown[RIGHT_ARROW] || keysDown[68] || touchRight;
 
     if (moveLeft)  this.vx = -PLAYER_SPEED;
     else if (moveRight) this.vx =  PLAYER_SPEED;
@@ -412,11 +415,6 @@ function setup() {
   const cnv = createCanvas(canvasW, canvasH);
   cnv.parent('game-wrapper');
 
-  // Position canvas before the touch-controls div
-  const wrapper = document.getElementById('game-wrapper');
-  const controls = document.getElementById('touch-controls');
-  wrapper.insertBefore(cnv.elt, controls);
-
   textFont('monospace');
   generateBackground();
 
@@ -498,15 +496,10 @@ function updateGame() {
     playLevelComplete();
     localStorage.setItem('pongoHiScore', hiScore);
   }
-
-  // Touch shoot trigger
-  if (window._touchKeys && window._touchKeys['SHOOT']) {
-    window._touchKeys['SHOOT'] = false;
-    tryShoot();
-  }
 }
 
 function drawGame() {
+  drawTouchZones();
   // Draw balloons
   for (let b of balloons) b.draw();
   // Draw bullet
@@ -580,12 +573,13 @@ function generateBackground() {
 }
 
 function drawBackground() {
-  // Sky gradient (Mediterranean blue)
-  for (let y = 0; y <= canvasH; y++) {
-    const inter = map(y, 0, canvasH * 0.75, 0, 1);
-    const c = lerpColor(color('#1a85e0'), color('#87CEEB'), constrain(inter, 0, 1));
-    stroke(c);
-    line(0, y, canvasW, y);
+  push();
+  // Sky gradient (Mediterranean blue) — drawn in 6px bands for performance
+  noStroke();
+  for (let y = 0; y < canvasH; y += 6) {
+    const inter = constrain(map(y, 0, canvasH * 0.75, 0, 1), 0, 1);
+    fill(lerpColor(color('#1a85e0'), color('#87CEEB'), inter));
+    rect(0, y, canvasW, 7);
   }
 
   // Sun
@@ -638,6 +632,7 @@ function drawBackground() {
 
   // Ceramic tile floor (Onda specialty!)
   drawTileFloor();
+  pop();
 }
 
 function drawTileFloor() {
@@ -795,8 +790,13 @@ function drawStartScreen() {
   fill(220, 220, 220);
   textAlign(CENTER, CENTER);
   const iY = canvasH * 0.67;
-  text('← → / A D  — Move', canvasW / 2, iY);
-  text('SPACE / ↑ — Shoot', canvasW / 2, iY + 22);
+  if ('ontouchstart' in window) {
+    text('Hold left / right side — Move', canvasW / 2, iY);
+    text('Tap middle — Shoot', canvasW / 2, iY + 22);
+  } else {
+    text('← → / A D  — Move', canvasW / 2, iY);
+    text('SPACE / ↑ — Shoot', canvasW / 2, iY + 22);
+  }
   text('Pop all balloons to advance!', canvasW / 2, iY + 44);
 
   // Pulsing tap prompt
@@ -896,6 +896,7 @@ function keyPressed() {
 
 function keyReleased() {
   keysDown[keyCode] = false;
+  return false;
 }
 
 function mousePressed() {
@@ -911,8 +912,65 @@ function touchStarted() {
   initAudio();
   if (gameState === 'start' || gameState === 'gameOver') {
     startGame();
+    return false;
+  }
+  if (gameState === 'playing') {
+    for (let i = 0; i < touches.length; i++) {
+      const tx = touches[i].x;
+      if (tx < canvasW * 0.38) {
+        touchLeft = true;
+      } else if (tx > canvasW * 0.62) {
+        touchRight = true;
+      } else {
+        // Middle tap = shoot
+        tryShoot();
+      }
+    }
   }
   return false;
+}
+
+function touchMoved() {
+  if (gameState !== 'playing') return false;
+  touchLeft  = false;
+  touchRight = false;
+  for (let i = 0; i < touches.length; i++) {
+    const tx = touches[i].x;
+    if (tx < canvasW * 0.38)       touchLeft  = true;
+    else if (tx > canvasW * 0.62)  touchRight = true;
+  }
+  return false;
+}
+
+function touchEnded() {
+  touchLeft  = false;
+  touchRight = false;
+  return false;
+}
+
+function drawTouchZones() {
+  // Only show on touch devices
+  if (!('ontouchstart' in window)) return;
+  push();
+  noStroke();
+  // Left zone
+  fill(255, 255, 255, touchLeft ? 35 : 12);
+  rect(0, HUD_H, canvasW * 0.38, canvasH - HUD_H - FLOOR_H);
+  // Right zone
+  fill(255, 255, 255, touchRight ? 35 : 12);
+  rect(canvasW * 0.62, HUD_H, canvasW * 0.38, canvasH - HUD_H - FLOOR_H);
+  // Zone labels
+  fill(255, 255, 255, touchLeft ? 120 : 50);
+  textSize(28);
+  textAlign(CENTER, CENTER);
+  text('◀', canvasW * 0.19, canvasH * 0.6);
+  fill(255, 255, 255, touchRight ? 120 : 50);
+  text('▶', canvasW * 0.81, canvasH * 0.6);
+  fill(255, 255, 255, 40);
+  textSize(10);
+  textAlign(CENTER, CENTER);
+  text('tap = shoot', canvasW * 0.5, canvasH * 0.6);
+  pop();
 }
 
 function windowResized() {
@@ -929,12 +987,14 @@ function windowResized() {
 // ── 12. HELPER: startGame ─────────────────────────────────────────────────────
 
 function startGame() {
-  score     = 0;
-  lives     = 3;
-  level     = 1;
-  bullet    = null;
-  keysDown  = {};
-  player    = new Player();
+  score      = 0;
+  lives      = 3;
+  level      = 1;
+  bullet     = null;
+  keysDown   = {};
+  touchLeft  = false;
+  touchRight = false;
+  player     = new Player();
   spawnLevel(1);
-  gameState = 'playing';
+  gameState  = 'playing';
 }
