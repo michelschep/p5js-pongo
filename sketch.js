@@ -659,10 +659,10 @@ function drawTileFloor() {
       // Mini ceramic pattern inside tile
       const pat = (col + row * 2) % 4;
       if (pat === 0) {
-        fill('#1E90FF', 160);
+        fill(30, 144, 255, 160);
         ellipse(tx + tileW/2, ty + tileH/2, 6, 6);
       } else if (pat === 1) {
-        fill('#6B8E23', 160);
+        fill(107, 142, 35, 160);
         noStroke();
         const cx = tx + tileW / 2;
         const cy = ty + tileH / 2;
@@ -675,13 +675,13 @@ function drawTileFloor() {
         }
         pop();
       } else if (pat === 2) {
-        stroke('#FF8C00', 100);
+        stroke(255, 140, 0, 100);
         strokeWeight(1);
         noFill();
         rect(tx + 3, ty + 3, tileW - 6, tileH - 6);
         noStroke();
       } else {
-        fill('#C1440E', 120);
+        fill(193, 68, 14, 120);
         noStroke();
         triangle(
           tx + tileW/2, ty + 3,
