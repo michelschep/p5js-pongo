@@ -4,9 +4,9 @@
 
 // ── 1. CONSTANTS & GLOBALS ───────────────────────────────────────────────────
 const BALLOON_SIZES = {
-  large:  { radius: 40, nextSize: 'medium', score: 100, minBounce: 5,  vxMag: 1.1 },
-  medium: { radius: 25, nextSize: 'small',  score: 30,  minBounce: 4.5,vxMag: 1.6 },
-  small:  { radius: 13, nextSize: null,     score: 10,  minBounce: 4,  vxMag: 2.2 }
+  large:  { radius: 40, nextSize: 'medium', score: 100, minBounce: 3.0, vxMag: 0.75 },
+  medium: { radius: 25, nextSize: 'small',  score: 30,  minBounce: 2.5, vxMag: 1.1  },
+  small:  { radius: 13, nextSize: null,     score: 10,  minBounce: 2.0, vxMag: 1.6  }
 };
 
 const GRAVITY       = 0.15;
@@ -347,55 +347,71 @@ function playBounce() {
   } catch(e) {}
 }
 
-function playDeath() {
+function playHit() {
+  // Kort geluidje bij leven verliezen (game gaat door)
+  if (!audioCtx) return;
+  try {
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(440, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.35);
+    g.gain.setValueAtTime(0.2, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc.start(t); osc.stop(t + 0.4);
+  } catch(e) {}
+}
+
+function playGameOver() {
+  // DRAMATISCH: sad trombone wah-wah-wah-waaaah + diepe dreun + knal
   if (!audioCtx) return;
   try {
     const t = audioCtx.currentTime;
 
-    // Sad trombone: wah-wah-wah-waaaah (4 descending slides)
-    const wahNotes = [
-      { start: 0.00, from: 466, to: 415, dur: 0.22 },
-      { start: 0.22, from: 392, to: 349, dur: 0.22 },
-      { start: 0.44, from: 330, to: 294, dur: 0.22 },
-      { start: 0.66, from: 262, to: 130, dur: 0.90 },  // lange droevige afdaler
+    // 4 dalende sawtooth-slides (sad trombone)
+    const wahs = [
+      { s: 0.00, f: 466, to: 392, d: 0.28 },
+      { s: 0.28, f: 392, to: 330, d: 0.28 },
+      { s: 0.56, f: 330, to: 277, d: 0.28 },
+      { s: 0.84, f: 277, to: 110, d: 1.20 },
     ];
-    wahNotes.forEach(n => {
-      const osc  = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
+    wahs.forEach(n => {
+      const osc = audioCtx.createOscillator();
+      const g   = audioCtx.createGain();
+      osc.connect(g); g.connect(audioCtx.destination);
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(n.from, t + n.start);
-      osc.frequency.exponentialRampToValueAtTime(n.to, t + n.start + n.dur);
-      gain.gain.setValueAtTime(0.28, t + n.start);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + n.start + n.dur + 0.05);
-      osc.start(t + n.start);
-      osc.stop(t + n.start + n.dur + 0.1);
+      osc.frequency.setValueAtTime(n.f,  t + n.s);
+      osc.frequency.exponentialRampToValueAtTime(n.to, t + n.s + n.d);
+      g.gain.setValueAtTime(0.30, t + n.s);
+      g.gain.exponentialRampToValueAtTime(0.001, t + n.s + n.d + 0.05);
+      osc.start(t + n.s); osc.stop(t + n.s + n.d + 0.15);
     });
 
-    // Bonk-geluid op het einde (diepe dreun)
-    const bonkOsc  = audioCtx.createOscillator();
-    const bonkGain = audioCtx.createGain();
-    bonkOsc.connect(bonkGain); bonkGain.connect(audioCtx.destination);
-    bonkOsc.type = 'sine';
-    bonkOsc.frequency.setValueAtTime(80, t + 1.5);
-    bonkOsc.frequency.exponentialRampToValueAtTime(30, t + 1.9);
-    bonkGain.gain.setValueAtTime(0.5, t + 1.5);
-    bonkGain.gain.exponentialRampToValueAtTime(0.001, t + 1.9);
-    bonkOsc.start(t + 1.5);
-    bonkOsc.stop(t + 2.0);
+    // Diepe bas-dreun
+    const bass = audioCtx.createOscillator();
+    const bg   = audioCtx.createGain();
+    bass.connect(bg); bg.connect(audioCtx.destination);
+    bass.type = 'sine';
+    bass.frequency.setValueAtTime(70, t + 2.05);
+    bass.frequency.exponentialRampToValueAtTime(25, t + 2.6);
+    bg.gain.setValueAtTime(0.55, t + 2.05);
+    bg.gain.exponentialRampToValueAtTime(0.001, t + 2.6);
+    bass.start(t + 2.05); bass.stop(t + 2.7);
 
-    // Ruisburst (knal)
-    const bufSize = audioCtx.sampleRate * 0.3;
+    // Ruisknal
+    const bufSize = audioCtx.sampleRate * 0.4;
     const buf  = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 2);
-    const ns   = audioCtx.createBufferSource();
-    ns.buffer  = buf;
-    const ng   = audioCtx.createGain();
-    ng.gain.setValueAtTime(0.35, t + 1.5);
-    ng.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 1.5);
+    const ns = audioCtx.createBufferSource();
+    ns.buffer = buf;
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0.45, t + 2.05);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 2.4);
     ns.connect(ng); ng.connect(audioCtx.destination);
-    ns.start(t + 1.5);
+    ns.start(t + 2.05);
   } catch(e) {}
 }
 
@@ -483,7 +499,7 @@ function draw() {
 function updateGame() {
   player.update();
 
-  const speedMult = 0.65 + (level - 1) * 0.12;
+  const speedMult = 0.50 + (level - 1) * 0.10;
 
   // Update balloons
   for (let i = balloons.length - 1; i >= 0; i--) {
@@ -544,11 +560,13 @@ function drawGame() {
 
 function loseLife() {
   lives--;
-  playDeath();
-  player.invTimer = INVINCIBLE_FRAMES;
   if (lives <= 0) {
     gameState = 'gameOver';
+    playGameOver();
     localStorage.setItem('pongoHiScore', hiScore);
+  } else {
+    playHit();
+    player.invTimer = INVINCIBLE_FRAMES;
   }
 }
 
