@@ -43,8 +43,8 @@ let bgStars    = [];
 // Building geometry (generated once per resize)
 let bgBuildings = [];
 
-// Tile pattern colors
-const TILE_COLORS = ['#1E90FF','#C1440E','#FF8C00','#6B8E23','#FAFAFA','#E8B86D'];
+// Balloon colors — Spanish flag palette (rood & geel)
+const TILE_COLORS = ['#C60B1E','#FFC400','#E8000D','#F0A500','#CC0000','#FFD700'];
 
 // ── 3. CLASS DEFINITIONS ──────────────────────────────────────────────────────
 
@@ -558,72 +558,178 @@ function spawnLevel(lvl) {
 
 function generateBackground() {
   bgBuildings = [];
-  // Generate a row of white Andalusian buildings
-  let bx = 0;
-  while (bx < canvasW + 80) {
-    const bw = random(60, 110);
-    const bh = random(canvasH * 0.25, canvasH * 0.55);
-    bgBuildings.push({ x: bx, w: bw, h: bh,
-      windows: floor(random(1, 3)),
-      hasDome: random() > 0.6,
-      hasTower: random() > 0.75
+  // Plaza del Almudín stijl: aaneengesloten gevels met soportales (boogarcades)
+  // Vaste compositie: links een klokkentoren, dan een rij gevels met bogen
+  const STORY = 48;
+  let bx = -10;
+  let firstBuilding = true;
+  while (bx < canvasW + 60) {
+    const isTower = firstBuilding;
+    const bw  = isTower ? floor(random(42, 56)) : floor(random(72, 125));
+    const floors = isTower ? floor(random(4, 6)) : floor(random(2, 3));
+    const bh  = floors * STORY + floor(random(-6, 10));
+    const archSpacing = 36;
+    const archCount = isTower ? 0 : max(1, floor((bw - 10) / archSpacing));
+    bgBuildings.push({
+      x: bx, w: bw, h: bh, floors,
+      isTower,
+      archCount,                      // soportal arches on ground floor
+      balconyFloor: floors > 2 ? 1 : -1, // which floor has a balcony
+      windowsPerFloor: floor(random(1, 3)),
+      colorVariant: floor(random(3))   // 0=sandy, 1=warm cream, 2=ochre
     });
-    bx += bw + random(0, 12);
+    bx += bw + floor(random(0, 6));
+    firstBuilding = false;
   }
 }
 
 function drawBackground() {
   push();
-  // Sky gradient (Mediterranean blue) — drawn in 6px bands for performance
+
+  // ── Lucht: warm Mediterraan (diep Spaans blauw → gouden horizon)
   noStroke();
-  for (let y = 0; y < canvasH; y += 6) {
-    const inter = constrain(map(y, 0, canvasH * 0.75, 0, 1), 0, 1);
-    fill(lerpColor(color('#1a85e0'), color('#87CEEB'), inter));
+  for (let y = 0; y < canvasH - FLOOR_H; y += 6) {
+    const inter = constrain(map(y, 0, canvasH * 0.8, 0, 1), 0, 1);
+    fill(lerpColor(color(28, 80, 160), color(180, 210, 240), inter));
     rect(0, y, canvasW, 7);
   }
 
-  // Sun
+  // ── Zon
   noStroke();
-  fill(255, 240, 80, 200);
-  ellipse(canvasW - 55, 55, 60, 60);
-  fill(255, 230, 100, 80);
-  ellipse(canvasW - 55, 55, 90, 90);
+  fill(255, 210, 40, 220);
+  ellipse(canvasW * 0.82, 48, 52, 52);
+  fill(255, 220, 80, 70);
+  ellipse(canvasW * 0.82, 48, 82, 82);
 
-  // Buildings silhouette
-  noStroke();
+  // ── Gebouwen — Plaza del Almudín stijl
+  const groundY = canvasH - FLOOR_H;
+  const STORY   = 48;
+
+  // Stenen kleuren: zandgeel, warm crème, okergeel
+  const stoneColors = [
+    [212, 195, 155],  // warm zand
+    [225, 210, 175],  // licht crème
+    [196, 172, 120],  // donker okergeel
+  ];
+  const shutterColor = [120, 80, 30]; // donkerbruine luiken
+
   for (const b of bgBuildings) {
-    fill(245, 240, 228, 220);
-    const top = canvasH - FLOOR_H - b.h;
+    const top  = groundY - b.h;
+    const sc   = stoneColors[b.colorVariant];
+
+    // ── Hoofdgevelvlak
+    noStroke();
+    fill(sc[0], sc[1], sc[2]);
     rect(b.x, top, b.w, b.h);
 
-    // Arch/windows
-    fill(100, 160, 220, 180);
-    for (let wi = 0; wi < b.windows; wi++) {
-      const wx = b.x + (b.w / (b.windows + 1)) * (wi + 1) - 5;
-      const wy = top + b.h * 0.3;
-      rect(wx, wy, 10, 14, 5, 5, 0, 0);
+    if (b.isTower) {
+      // ── Klokkentoren stijl
+      // Iets donkerdere steen
+      fill(sc[0] - 15, sc[1] - 15, sc[2] - 15);
+      rect(b.x, top, b.w, b.h);
+      // Boogvenster bovenaan
+      fill(60, 40, 20, 180);
+      const archW = b.w * 0.55;
+      const archX = b.x + b.w / 2;
+      const archY = top + 18;
+      arc(archX, archY + archW * 0.4, archW, archW * 0.8, PI, TWO_PI);
+      rect(archX - archW / 2, archY + archW * 0.4, archW, archW * 0.5);
+      // Terracotta dak (puntdak)
+      fill(178, 80, 30);
+      triangle(b.x - 4, top, b.x + b.w + 4, top, b.x + b.w / 2, top - 28);
+      // Kruis / klokdetail
+      stroke(150, 60, 20);
+      strokeWeight(3);
+      line(b.x + b.w / 2, top - 28, b.x + b.w / 2, top - 10);
+      line(b.x + b.w / 2 - 7, top - 22, b.x + b.w / 2 + 7, top - 22);
+      noStroke();
+      // Horizontale banden (siermetselwerk)
+      stroke(sc[0] - 25, sc[1] - 25, sc[2] - 25, 100);
+      strokeWeight(1);
+      for (let band = 1; band < b.floors; band++) {
+        line(b.x, top + band * STORY, b.x + b.w, top + band * STORY);
+      }
+      noStroke();
+    } else {
+      // ── Gewone gevel
+
+      // -- Etage-indeling: ramen per verdieping
+      for (let fl = 0; fl < b.floors - 1; fl++) {
+        const floorTop = top + fl * STORY + 8;
+        const isBalconyFloor = fl === b.balconyFloor;
+        const winW  = isBalconyFloor ? 14 : 10;
+        const winH  = isBalconyFloor ? 18 : 14;
+        const winY  = floorTop + (STORY - winH) / 2 - 4;
+
+        for (let wi = 0; wi < b.windowsPerFloor; wi++) {
+          const winX = b.x + (b.w / (b.windowsPerFloor + 1)) * (wi + 1) - winW / 2;
+          // Vensternis (diepte)
+          fill(sc[0] - 30, sc[1] - 30, sc[2] - 30);
+          rect(winX - 1, winY - 1, winW + 2, winH + 2, 2, 2, 0, 0);
+          // Glas (donker blauwgrijs)
+          fill(70, 90, 110, 200);
+          rect(winX, winY, winW, winH, 2, 2, 0, 0);
+          // Luiken
+          fill(shutterColor[0], shutterColor[1], shutterColor[2]);
+          rect(winX - 5, winY, 4, winH);
+          rect(winX + winW + 1, winY, 4, winH);
+
+          if (isBalconyFloor) {
+            // ── Balkon: plaat + hekje
+            fill(sc[0] - 20, sc[1] - 20, sc[2] - 20);
+            rect(winX - 4, winY + winH, winW + 8, 4);
+            stroke(40, 30, 20, 200);
+            strokeWeight(1.5);
+            // Spijlen
+            for (let sp = 0; sp <= floor((winW + 8) / 4); sp++) {
+              line(winX - 4 + sp * 4, winY + winH + 4, winX - 4 + sp * 4, winY + winH + 12);
+            }
+            // Bovenrail
+            line(winX - 4, winY + winH + 4, winX + winW + 4, winY + winH + 4);
+            noStroke();
+          }
+        }
+      }
+
+      // ── Soportales: boogarcade op de begane grond (onderste verdieping)
+      const archFloorY = groundY - STORY;           // onderkant boogverdieping
+      const archH      = STORY - 4;
+      const archSpacingActual = b.w / (b.archCount + 1);
+
+      // Donkere achtergrond in de arcade (schaduw/diepte)
+      fill(sc[0] - 50, sc[1] - 50, sc[2] - 50);
+      rect(b.x, archFloorY, b.w, STORY);
+
+      // Lichtere bogen (stenen pijlers + boog)
+      for (let ai = 0; ai < b.archCount; ai++) {
+        const ax  = b.x + archSpacingActual * (ai + 0.5);
+        const aw  = archSpacingActual * 0.6;
+        // Boog-opening (donker = schaduw/diepte)
+        fill(60, 45, 30, 210);
+        arc(ax, archFloorY, aw, aw * 0.9, PI, TWO_PI);
+        rect(ax - aw / 2, archFloorY, aw, STORY * 0.55);
+        // Sluitsteen boog (accent)
+        fill(sc[0] - 10, sc[1] - 10, sc[2] - 10);
+        ellipse(ax, archFloorY + 1, 6, 6);
+      }
+      // Pijlers tussen de bogen
+      noStroke();
+      fill(sc[0] - 15, sc[1] - 15, sc[2] - 15);
+      for (let pi = 0; pi <= b.archCount; pi++) {
+        const px = b.x + archSpacingActual * pi;
+        rect(px, archFloorY, archSpacingActual * 0.2, STORY);
+      }
+
+      // Daklijn / cornice
+      fill(sc[0] + 15, min(sc[1] + 15, 255), min(sc[2] + 15, 255));
+      rect(b.x - 2, top - 4, b.w + 4, 6);
+      // Terracotta dakpannetje
+      fill(178, 85, 35, 180);
+      rect(b.x, top - 8, b.w, 5);
     }
 
-    // Dome
-    if (b.hasDome) {
-      fill(255, 220, 100, 200);
-      arc(b.x + b.w / 2, top + 2, b.w * 0.6, b.w * 0.4, PI, TWO_PI);
-    }
-
-    // Tower
-    if (b.hasTower) {
-      fill(240, 235, 220, 220);
-      rect(b.x + b.w * 0.3, top - 30, b.w * 0.35, 32);
-      fill(180, 50, 10, 200);
-      triangle(
-        b.x + b.w * 0.3, top - 30,
-        b.x + b.w * 0.65, top - 30,
-        b.x + b.w * 0.475, top - 52
-      );
-    }
-
-    // Wall outline
-    stroke(200, 190, 170, 80);
+    // Gevellijn (subtiele schaduw)
+    stroke(sc[0] - 40, sc[1] - 40, sc[2] - 40, 60);
     strokeWeight(1);
     noFill();
     rect(b.x, top, b.w, b.h);
