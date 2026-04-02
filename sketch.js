@@ -4,9 +4,9 @@
 
 // ── 1. CONSTANTS & GLOBALS ───────────────────────────────────────────────────
 const BALLOON_SIZES = {
-  large:  { radius: 40, nextSize: 'medium', score: 100, minBounce: 8,  vxMag: 2.0 },
-  medium: { radius: 25, nextSize: 'small',  score: 30,  minBounce: 7,  vxMag: 2.6 },
-  small:  { radius: 13, nextSize: null,     score: 10,  minBounce: 6,  vxMag: 3.2 }
+  large:  { radius: 40, nextSize: 'medium', score: 100, minBounce: 5,  vxMag: 1.1 },
+  medium: { radius: 25, nextSize: 'small',  score: 30,  minBounce: 4.5,vxMag: 1.6 },
+  small:  { radius: 13, nextSize: null,     score: 10,  minBounce: 4,  vxMag: 2.2 }
 };
 
 const GRAVITY       = 0.15;
@@ -350,18 +350,52 @@ function playBounce() {
 function playDeath() {
   if (!audioCtx) return;
   try {
-    const t    = audioCtx.currentTime;
-    const osc  = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.exponentialRampToValueAtTime(110, t + 0.5);
-    gain.gain.setValueAtTime(0.25, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    osc.start(t);
-    osc.stop(t + 0.5);
+    const t = audioCtx.currentTime;
+
+    // Sad trombone: wah-wah-wah-waaaah (4 descending slides)
+    const wahNotes = [
+      { start: 0.00, from: 466, to: 415, dur: 0.22 },
+      { start: 0.22, from: 392, to: 349, dur: 0.22 },
+      { start: 0.44, from: 330, to: 294, dur: 0.22 },
+      { start: 0.66, from: 262, to: 130, dur: 0.90 },  // lange droevige afdaler
+    ];
+    wahNotes.forEach(n => {
+      const osc  = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(n.from, t + n.start);
+      osc.frequency.exponentialRampToValueAtTime(n.to, t + n.start + n.dur);
+      gain.gain.setValueAtTime(0.28, t + n.start);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + n.start + n.dur + 0.05);
+      osc.start(t + n.start);
+      osc.stop(t + n.start + n.dur + 0.1);
+    });
+
+    // Bonk-geluid op het einde (diepe dreun)
+    const bonkOsc  = audioCtx.createOscillator();
+    const bonkGain = audioCtx.createGain();
+    bonkOsc.connect(bonkGain); bonkGain.connect(audioCtx.destination);
+    bonkOsc.type = 'sine';
+    bonkOsc.frequency.setValueAtTime(80, t + 1.5);
+    bonkOsc.frequency.exponentialRampToValueAtTime(30, t + 1.9);
+    bonkGain.gain.setValueAtTime(0.5, t + 1.5);
+    bonkGain.gain.exponentialRampToValueAtTime(0.001, t + 1.9);
+    bonkOsc.start(t + 1.5);
+    bonkOsc.stop(t + 2.0);
+
+    // Ruisburst (knal)
+    const bufSize = audioCtx.sampleRate * 0.3;
+    const buf  = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 2);
+    const ns   = audioCtx.createBufferSource();
+    ns.buffer  = buf;
+    const ng   = audioCtx.createGain();
+    ng.gain.setValueAtTime(0.35, t + 1.5);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+    ns.connect(ng); ng.connect(audioCtx.destination);
+    ns.start(t + 1.5);
   } catch(e) {}
 }
 
@@ -449,7 +483,7 @@ function draw() {
 function updateGame() {
   player.update();
 
-  const speedMult = 1 + (level - 1) * 0.1;
+  const speedMult = 0.65 + (level - 1) * 0.12;
 
   // Update balloons
   for (let i = balloons.length - 1; i >= 0; i--) {
@@ -536,21 +570,22 @@ function startNextLevel() {
 
 function spawnLevel(lvl) {
   balloons = [];
-  let largeCnt  = 1 + lvl;
-  let mediumCnt = max(0, lvl - 1);
-  // Cap to reasonable amounts
-  largeCnt  = min(largeCnt, 5);
-  mediumCnt = min(mediumCnt, 3);
+  // Level 1: 1 grote ballon, heel rustig
+  // Level 2: 2 groot
+  // Level 3: 2 groot + 1 medium
+  // Level 4+: geleidelijk meer
+  const largeCnt  = min(lvl, 5);
+  const mediumCnt = min(max(0, lvl - 2), 3);
 
   for (let i = 0; i < largeCnt; i++) {
-    const x  = random(60, canvasW - 60);
-    const vx = (random() > 0.5 ? 1 : -1) * BALLOON_SIZES.large.vxMag * (1 + (lvl - 1) * 0.08);
-    balloons.push(new Balloon('large', x, 60, vx, 1, i % TILE_COLORS.length));
+    const x  = random(80, canvasW - 80);
+    const vx = (random() > 0.5 ? 1 : -1) * BALLOON_SIZES.large.vxMag;
+    balloons.push(new Balloon('large', x, 60, vx, 0.5, i % TILE_COLORS.length));
   }
   for (let i = 0; i < mediumCnt; i++) {
-    const x  = random(60, canvasW - 60);
-    const vx = (random() > 0.5 ? 1 : -1) * BALLOON_SIZES.medium.vxMag * (1 + (lvl - 1) * 0.08);
-    balloons.push(new Balloon('medium', x, 80, vx, 1, (i + 2) % TILE_COLORS.length));
+    const x  = random(80, canvasW - 80);
+    const vx = (random() > 0.5 ? 1 : -1) * BALLOON_SIZES.medium.vxMag;
+    balloons.push(new Balloon('medium', x, 80, vx, 0.5, (i + 2) % TILE_COLORS.length));
   }
 }
 
