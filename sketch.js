@@ -9,7 +9,7 @@ const BALLOON_SIZES = {
   small:  { radius: 13, nextSize: null,     score: 10,  minBounce: 2.0, vxMag: 1.6  }
 };
 
-const GRAVITY       = 0.15;
+const GRAVITY       = 0.10;
 const PLAYER_SPEED  = 4;
 const BULLET_SPEED  = 10;
 const FLOOR_H       = 60;   // height of ceramic tile floor
@@ -150,7 +150,7 @@ class Balloon {
   }
 
   update(speedMult) {
-    this.vy += GRAVITY;
+    this.vy += GRAVITY * speedMult;   // gravity ook schalen met speedMult
     this.x  += this.vx * speedMult;
     this.y  += this.vy * speedMult;
 
@@ -243,6 +243,7 @@ class Bullet {
   }
 
   update() {
+    this.prevY = this.y;
     this.y -= BULLET_SPEED;
     if (this.y < HUD_H) this.alive = false;
   }
@@ -263,10 +264,12 @@ class Bullet {
   }
 
   hits(balloon) {
-    return balloon.alive &&
-      abs(this.x - balloon.x) < balloon.r + this.w / 2 &&
-      this.y < balloon.y + balloon.r &&
-      this.y > balloon.y - balloon.r;
+    // Horizontal check
+    if (abs(this.x - balloon.x) >= balloon.r + this.w / 2) return false;
+    // Check the full bullet beam: from tip (this.y) all the way down to the floor.
+    // This matches the visual and prevents fast-moving balloons from slipping through.
+    const beamBottom = canvasH - FLOOR_H;
+    return balloon.y + balloon.r > this.y && balloon.y - balloon.r < beamBottom;
   }
 }
 
@@ -499,7 +502,7 @@ function draw() {
 function updateGame() {
   player.update();
 
-  const speedMult = 0.50 + (level - 1) * 0.10;
+  const speedMult = 0.42 + (level - 1) * 0.10;
 
   // Update balloons
   for (let i = balloons.length - 1; i >= 0; i--) {
