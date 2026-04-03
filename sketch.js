@@ -691,42 +691,52 @@ function spawnLevel(lvl) {
 function generateBackground() {
   bgBuildings = [];
   const STORY = 48;
-  const groundY = canvasH - FLOOR_H;
 
-  // Vaste landmark-compositie + random opvulling
-  // 1. Kasteel van Onda (links, groot)
-  bgBuildings.push({ type: 'castle', x: -8, w: 105, h: 155 });
+  // Landmarks op canvas-breedte-relatieve posities zodat ze op elk scherm zichtbaar zijn
+  // 1. Kasteel van Onda — altijd links
+  bgBuildings.push({ type: 'castle', x: -8, w: 110, h: 158 });
 
-  // 2. Reguliere gevels na kasteel
-  let bx = 100;
-  bgBuildings.push({ type: 'regular', x: bx, w: 88, h: 2*STORY+8, floors: 2, archCount: 2, balconyFloor: 1, windowsPerFloor: 2, colorVariant: 1 });
-  bx += 90;
+  // 2. Tapas de Sofia — ca. 1/3 van het scherm
+  const tapasX = floor(canvasW * 0.32);
+  bgBuildings.push({ type: 'tapas', x: tapasX, w: 95, h: 112 });
 
-  // 3. Tapas bar
-  bgBuildings.push({ type: 'tapas', x: bx, w: 80, h: STORY + 24, colorVariant: 2 });
-  bx += 82;
+  // 3. Molí de la Reixa (windmolen) — ca. 2/3 van het scherm
+  const moliX = floor(canvasW * 0.66);
+  bgBuildings.push({ type: 'windmill', x: moliX, w: 78, h: 115 });
 
-  // 4. Reguliere gebouwen vulling
-  while (bx < canvasW * 0.7) {
-    const bw = floor(random(72, 115));
+  // Opvulling: reguliere gevels tussen kasteel en tapas bar
+  let bx = 104;
+  while (bx < tapasX - 4) {
+    const bw = min(floor(random(70, 110)), tapasX - bx - 2);
+    if (bw < 40) break;
     const floors = floor(random(2, 3));
     bgBuildings.push({ type: 'regular', x: bx, w: bw, h: floors*STORY + floor(random(-4,8)),
       floors, archCount: max(1, floor((bw-10)/36)), balconyFloor: floors>2?1:-1,
       windowsPerFloor: floor(random(1, 3)), colorVariant: floor(random(3)) });
-    bx += bw + floor(random(0, 6));
+    bx += bw + floor(random(1, 5));
   }
 
-  // 5. Molí de la Reixa (molen, rechts)
-  bgBuildings.push({ type: 'windmill', x: max(bx, canvasW - 120), w: 72, h: 108 });
-  bx = max(bx, canvasW - 120) + 74;
+  // Reguliere gevels tussen tapas en molen
+  bx = tapasX + 97;
+  while (bx < moliX - 4) {
+    const bw = min(floor(random(70, 110)), moliX - bx - 2);
+    if (bw < 40) break;
+    const floors = floor(random(2, 3));
+    bgBuildings.push({ type: 'regular', x: bx, w: bw, h: floors*STORY + floor(random(-4,8)),
+      floors, archCount: max(1, floor((bw-10)/36)), balconyFloor: floors>2?1:-1,
+      windowsPerFloor: floor(random(1, 3)), colorVariant: floor(random(3)) });
+    bx += bw + floor(random(1, 5));
+  }
 
-  // 6. Opvulling rechts
+  // Opvulling rechts van molen
+  bx = moliX + 80;
   while (bx < canvasW + 60) {
     const bw = floor(random(60, 90));
-    bgBuildings.push({ type: 'regular', x: bx, w: bw, h: 2*STORY, floors: 2,
-      archCount: max(1, floor((bw-10)/36)), balconyFloor: -1,
+    const floors = 2;
+    bgBuildings.push({ type: 'regular', x: bx, w: bw, h: floors*STORY,
+      floors, archCount: max(1, floor((bw-10)/36)), balconyFloor: -1,
       windowsPerFloor: floor(random(1, 2)), colorVariant: floor(random(3)) });
-    bx += bw + floor(random(0, 5));
+    bx += bw + floor(random(1, 5));
   }
 }
 
@@ -866,56 +876,76 @@ function _drawCastle(b, groundY) {
 }
 
 function _drawTapasBar(b, groundY) {
-  const top  = groundY - b.h;
-  const sc   = _stone[b.colorVariant || 2];
-  const cx   = b.x + b.w / 2;
+  const top = groundY - b.h;
+  const sc  = _stone[2]; // okergeel
+  const cx  = b.x + b.w / 2;
 
-  // Gebouwlichaam
+  // ── Gebouwlichaam
   noStroke(); fill(sc[0], sc[1], sc[2]);
   rect(b.x, top, b.w, b.h);
 
-  // Gestreepte luifel (rood/geel Spaans)
-  const awY = top + 6;
-  const strW = 7;
-  // Clip met push/translate-free clipping via repeated rects
-  for (let sx = b.x; sx < b.x + b.w; sx += strW * 2) {
+  // ── Gestreepte luifel (rood/geel) — breed, goed zichtbaar
+  const awY = top + 4;
+  const strW = 8;
+  for (let sx = b.x - 4; sx < b.x + b.w + 4; sx += strW * 2) {
     fill(198, 11, 30);
-    rect(sx, awY, min(strW, b.x + b.w - sx), 16);
+    rect(sx, awY, strW, 20);
   }
-  for (let sx = b.x + strW; sx < b.x + b.w; sx += strW * 2) {
+  for (let sx = b.x - 4 + strW; sx < b.x + b.w + 4; sx += strW * 2) {
     fill(255, 196, 0);
-    rect(sx, awY, min(strW, b.x + b.w - sx), 16);
+    rect(sx, awY, strW, 20);
   }
   // Luifelrand
-  fill(140, 8, 20);
-  rect(b.x - 2, awY + 14, b.w + 4, 3);
+  noStroke(); fill(120, 5, 15);
+  rect(b.x - 5, awY + 18, b.w + 10, 4);
+  // Luifelschaduw
+  fill(0, 0, 0, 35);
+  rect(b.x - 5, awY + 20, b.w + 10, 5);
 
-  // Ramen
-  fill(50, 70, 90, 200);
-  rect(b.x + 7, top + 28, 22, 20, 2);
-  rect(b.x + b.w - 29, top + 28, 22, 20, 2);
+  // ── Groot uithangbord "Tapas de Sofia"
+  const signY = top + 32;
+  fill(80, 20, 5);  noStroke();
+  rect(cx - 42, signY, 84, 22, 3);
+  // Gouden rand
+  stroke(220, 170, 40); strokeWeight(1.5);
+  noFill();
+  rect(cx - 42, signY, 84, 22, 3);
+  noStroke();
+  // Tekst
+  fill(255, 230, 160);
+  textSize(11); textAlign(CENTER, CENTER); textFont('monospace');
+  text('Tapas de Sofia', cx, signY + 11);
+
+  // ── Ramen (boven soportal)
+  fill(50, 70, 90, 200); noStroke();
+  rect(b.x + 8,           top + 62, 24, 20, 2);
+  rect(b.x + b.w - 32,   top + 62, 24, 20, 2);
   // Raamkruis
   stroke(sc[0]-20, sc[1]-20, sc[2]-20); strokeWeight(1);
-  line(b.x + 18, top + 28, b.x + 18, top + 48);
-  line(b.x + b.w - 18, top + 28, b.x + b.w - 18, top + 48);
+  line(b.x + 20, top + 62, b.x + 20, top + 82);
+  line(b.x + b.w - 20, top + 62, b.x + b.w - 20, top + 82);
   noStroke();
 
-  // TAPAS bordje
-  fill(80, 20, 5); noStroke();
-  rect(cx - 34, top + 54, 68, 14, 2);
-  fill(255, 220, 180);
-  textSize(9); textAlign(CENTER, CENTER); textFont('monospace');
-  text('Tapas de Sofia', cx, top + 62);
+  // ── Soportal (begane grond) — getekend NADAT bordje klaar is
+  const archFloorY = groundY - 42;
+  fill(sc[0] - 45, sc[1] - 45, sc[2] - 45);
+  rect(b.x, archFloorY, b.w, 42);
+  // Centrale boog
+  fill(45, 30, 15, 220);
+  arc(cx, archFloorY, b.w * 0.52, 34, PI, TWO_PI);
+  rect(cx - b.w*0.26, archFloorY, b.w * 0.52, 22);
+  // Zijpijlers
+  noStroke(); fill(sc[0]-20, sc[1]-20, sc[2]-20);
+  rect(b.x, archFloorY, 10, 42);
+  rect(b.x + b.w - 10, archFloorY, 10, 42);
 
-  // Soportal onderaan
-  const archFloorY = groundY - 38;
-  fill(sc[0]-45, sc[1]-45, sc[2]-45);
-  rect(b.x, archFloorY, b.w, 38);
-  fill(50, 38, 22, 200);
-  arc(cx, archFloorY, b.w * 0.55, 30, PI, TWO_PI);
-  rect(cx - b.w*0.275, archFloorY, b.w * 0.55, 20);
+  // ── Daklijn
+  fill(sc[0]+15, min(sc[1]+15,255), min(sc[2]+15,255));
+  rect(b.x - 2, top - 4, b.w + 4, 6);
+  fill(178, 85, 35, 190);
+  rect(b.x, top - 8, b.w, 5);
 
-  // Gevelrand
+  // ── Gevelrand
   stroke(sc[0]-40, sc[1]-40, sc[2]-40, 50); strokeWeight(1);
   noFill(); rect(b.x, top, b.w, b.h); noStroke();
 }
