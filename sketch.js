@@ -345,8 +345,9 @@ class Bullet {
 
   hits(balloon) {
     if (abs(this.x - balloon.x) >= balloon.r + this.w / 2) return false;
-    const beamBottom = canvasH - FLOOR_H;
-    return balloon.y + balloon.r > this.y && balloon.y - balloon.r < beamBottom;
+    // Alleen de pijl zelf (tip -10 tot fletching +30), niet de hele schermhoogte
+    return balloon.y + balloon.r > this.y - 10 &&
+           balloon.y - balloon.r < this.y + 30;
   }
 }
 
@@ -649,9 +650,12 @@ function loseLife() {
   }
 }
 
+let lastShotFrame = -99;
+
 function tryShoot() {
-  if (player) {
+  if (player && frameCount - lastShotFrame >= 8) {
     bullets.push(new Bullet(player.x));
+    lastShotFrame = frameCount;
     playShoot();
   }
 }
@@ -1398,7 +1402,8 @@ function startGame() {
   score      = 0;
   lives      = 3;
   level      = 1;
-  bullet     = null;
+  bullets    = [];
+  lastShotFrame = -99;
   keysDown   = {};
   touchLeft  = false;
   touchRight = false;
