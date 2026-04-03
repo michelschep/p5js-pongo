@@ -56,71 +56,120 @@ class Player {
     this.y         = canvasH - FLOOR_H - this.h / 2;
     this.vx        = 0;
     this.invTimer  = 0;
+    this.facing    = 'front'; // 'front' | 'left' | 'right'
+    this.walkFrame = 0;
   }
 
   update() {
     const moveLeft  = keysDown[LEFT_ARROW] || keysDown[65] || touchLeft;
     const moveRight = keysDown[RIGHT_ARROW] || keysDown[68] || touchRight;
 
-    if (moveLeft)  this.vx = -PLAYER_SPEED;
-    else if (moveRight) this.vx =  PLAYER_SPEED;
-    else           this.vx = 0;
+    if (moveLeft)       { this.vx = -PLAYER_SPEED; this.facing = 'left';  }
+    else if (moveRight) { this.vx =  PLAYER_SPEED;  this.facing = 'right'; }
+    else                { this.vx = 0;               this.facing = 'front'; }
 
     this.x = constrain(this.x + this.vx, this.w / 2, canvasW - this.w / 2);
-    this.y = canvasH - FLOOR_H - this.h / 2; // always on ground
+    this.y = canvasH - FLOOR_H - this.h / 2;
 
+    if (this.vx !== 0) this.walkFrame++;
     if (this.invTimer > 0) this.invTimer--;
   }
 
   draw() {
-    // Flash when invincible
     if (this.invTimer > 0 && floor(this.invTimer / 5) % 2 === 0) return;
-
     push();
     translate(this.x, this.y);
+    if (this.facing === 'front') {
+      this._drawFront();
+    } else {
+      this._drawSide(this.facing === 'right' ? 1 : -1);
+    }
+    pop();
+  }
 
-    // ── Shadow
-    noStroke();
-    fill(0, 0, 0, 40);
+  _drawFront() {
+    // Shadow
+    noStroke(); fill(0, 0, 0, 40);
     ellipse(0, this.h / 2 + 2, this.w * 1.3, 8);
 
-    // ── Legs
-    stroke('#C1440E');
-    strokeWeight(5);
+    // Legs
+    stroke('#C1440E'); strokeWeight(5);
     line(-7, 14, -9, 26);
     line( 7, 14,  9, 26);
 
-    // ── Body (guayabera shirt - white with blue stripe)
-    noStroke();
-    fill('#FAFAFA');
-    rectMode(CENTER);
+    // Body
+    noStroke(); fill('#FAFAFA'); rectMode(CENTER);
     rect(0, 4, this.w - 4, 28, 4);
-    fill('#1E90FF');
+    fill(30, 144, 255);
     rect(0, 4, 4, 28);
 
-    // ── Head
-    fill('#F4C07A');
-    ellipse(0, -12, 20, 20);
+    // Head
+    fill('#F4C07A'); ellipse(0, -12, 20, 20);
 
-    // ── Eyes
+    // Eyes
     fill('#2c1810');
     ellipse(-4, -13, 3, 3);
     ellipse( 4, -13, 3, 3);
 
-    // ── Smile
-    noFill();
-    stroke('#2c1810');
-    strokeWeight(1.5);
+    // Smile
+    noFill(); stroke('#2c1810'); strokeWeight(1.5);
     arc(0, -10, 10, 6, 0, PI);
 
-    // ── Sombrero
-    noStroke();
-    fill('#C1440E');
-    ellipse(0, -22, 28, 6);  // brim
+    // Sombrero
+    noStroke(); fill('#C1440E');
+    ellipse(0, -22, 30, 6);       // brim
     fill('#FF8C00');
-    rect(0, -27, 16, 12, 2); // crown
+    rect(0, -27, 16, 12, 2);      // crown
     fill('#FAFAFA');
-    rect(0, -23, 16, 2);     // band
+    rect(0, -23, 16, 2);          // band
+  }
+
+  _drawSide(dir) {
+    // dir: 1 = facing right, -1 = facing left
+    push();
+    scale(dir, 1); // mirror for left
+
+    // Walking leg animation
+    const swing = sin(this.walkFrame * 0.32) * 9;
+
+    // Shadow
+    noStroke(); fill(0, 0, 0, 40);
+    ellipse(2, this.h / 2 + 2, this.w * 1.1, 7);
+
+    // Back leg
+    stroke('#9B3010'); strokeWeight(5);
+    line(0, 14, -swing * 0.6, 26);
+    // Front leg
+    stroke('#C1440E'); strokeWeight(5);
+    line(2, 14,  swing * 0.6 + 2, 26);
+
+    // Body (side view — narrower)
+    noStroke(); fill('#FAFAFA'); rectMode(CENTER);
+    rect(2, 4, 16, 28, 3);
+    // Shirt stripe (edge of chest, side on)
+    fill(30, 144, 255);
+    rect(8, 4, 3, 26);
+
+    // Head — profile
+    fill('#F4C07A');
+    ellipse(4, -12, 16, 19);
+    // Nose
+    noStroke(); fill(220, 140, 80);
+    triangle(11, -14, 14, -11, 11, -8);
+
+    // Eye (single, side view)
+    fill('#2c1810');
+    ellipse(7, -14, 3, 3);
+
+    // Sombrero — side view
+    noStroke(); fill('#C1440E');
+    // Brim: long forward, short back
+    quad(-6, -20,  18, -20,  18, -17, -6, -17);
+    // Crown
+    fill('#FF8C00');
+    rect(2, -29, 13, 11, 2);
+    fill('#FAFAFA');
+    rect(2, -25, 13, 2);   // band
 
     pop();
   }
