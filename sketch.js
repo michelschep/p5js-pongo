@@ -103,31 +103,37 @@ class Player {
     fill(30, 144, 255);
     rect(0, 4, 4, 28);
 
+    // ── Boog (voor-aanzicht: boog omhoog geheven boven hoofd)
+    push();
+    translate(12, -18);
+    stroke(120, 75, 20); strokeWeight(2.5); noFill();
+    arc(0, 0, 22, 30, -HALF_PI - 0.9, -HALF_PI + 0.9); // gebogen boog
+    // Pees
+    stroke(200, 180, 140); strokeWeight(1);
+    line(-10, -8, -10, 8);   // verticale pees
+    pop();
+
     // Head
     fill('#F4C07A'); ellipse(0, -12, 20, 20);
-
-    // Eyes
     fill('#2c1810');
     ellipse(-4, -13, 3, 3);
     ellipse( 4, -13, 3, 3);
-
-    // Smile
     noFill(); stroke('#2c1810'); strokeWeight(1.5);
     arc(0, -10, 10, 6, 0, PI);
 
     // Sombrero
     noStroke(); fill('#C1440E');
-    ellipse(0, -22, 30, 6);       // brim
+    ellipse(0, -22, 30, 6);
     fill('#FF8C00');
-    rect(0, -27, 16, 12, 2);      // crown
+    rect(0, -27, 16, 12, 2);
     fill('#FAFAFA');
-    rect(0, -23, 16, 2);          // band
+    rect(0, -23, 16, 2);
   }
 
   _drawSide(dir) {
     // dir: 1 = facing right, -1 = facing left
     push();
-    scale(dir, 1); // mirror for left
+    scale(dir, 1);
 
     // Walking leg animation
     const swing = sin(this.walkFrame * 0.32) * 9;
@@ -143,33 +149,38 @@ class Player {
     stroke('#C1440E'); strokeWeight(5);
     line(2, 14,  swing * 0.6 + 2, 26);
 
-    // Body (side view — narrower)
+    // Body (side view)
     noStroke(); fill('#FAFAFA'); rectMode(CENTER);
     rect(2, 4, 16, 28, 3);
-    // Shirt stripe (edge of chest, side on)
     fill(30, 144, 255);
     rect(8, 4, 3, 26);
+
+    // ── Boog (zij-aanzicht: omhoog geheven arm met boog)
+    push();
+    translate(10, -8);
+    stroke(120, 75, 20); strokeWeight(2.5); noFill();
+    // Gebogen boog (C-vorm naar rechts)
+    arc(0, 0, 18, 34, -HALF_PI - 1.1, HALF_PI + 1.1);
+    // Pees
+    stroke(200, 180, 140); strokeWeight(1);
+    line(8, -14, 8, 14);
+    pop();
 
     // Head — profile
     fill('#F4C07A');
     ellipse(4, -12, 16, 19);
-    // Nose
     noStroke(); fill(220, 140, 80);
     triangle(11, -14, 14, -11, 11, -8);
-
-    // Eye (single, side view)
     fill('#2c1810');
     ellipse(7, -14, 3, 3);
 
     // Sombrero — side view
     noStroke(); fill('#C1440E');
-    // Brim: long forward, short back
     quad(-6, -20,  18, -20,  18, -17, -6, -17);
-    // Crown
     fill('#FF8C00');
     rect(2, -29, 13, 11, 2);
     fill('#FAFAFA');
-    rect(2, -25, 13, 2);   // band
+    rect(2, -25, 13, 2);
 
     pop();
   }
@@ -286,8 +297,8 @@ class Balloon {
 class Bullet {
   constructor(startX) {
     this.x     = startX;
-    this.y     = canvasH - FLOOR_H - 55;
-    this.w     = 8;
+    this.y     = canvasH - FLOOR_H - 60;
+    this.w     = 6;  // collision width
     this.alive = true;
   }
 
@@ -298,25 +309,42 @@ class Bullet {
   }
 
   draw() {
-    // Animated beam
-    const t = frameCount * 0.3;
-    for (let i = 0; i < 3; i++) {
-      const alpha = 255 - i * 60;
-      stroke(255, 255, 100, alpha);
-      strokeWeight(this.w - i * 2);
-      line(this.x, this.y + i * 4, this.x, canvasH - FLOOR_H - 50);
-    }
-    // Tip glow
+    push();
+    translate(this.x, this.y);
+
+    // ── Pijlschacht
+    stroke(160, 100, 30);
+    strokeWeight(2.5);
+    line(0, 0, 0, 28);
+
+    // ── Pijlpunt (driehoek naar boven)
     noStroke();
-    fill(255, 255, 200, 200);
-    ellipse(this.x, this.y, this.w + 4, this.w + 4);
+    fill(160, 160, 170);   // staalgrijs
+    triangle(0, -10, -5, 5, 5, 5);
+    // Gleam op de punt
+    fill(220, 220, 230, 180);
+    triangle(0, -8, -2, 0, 1, 0);
+
+    // ── Veren (fletching) onderaan
+    stroke(198, 11, 30, 200);  // Spaans rood
+    strokeWeight(1.5);
+    noFill();
+    // Linker veer
+    line(0, 24, -6, 32);
+    line(0, 26, -5, 30);
+    // Rechter veer
+    line(0, 24,  6, 32);
+    line(0, 26,  5, 30);
+    // Nok (inkeping)
+    stroke(100, 60, 10);
+    strokeWeight(2);
+    line(-2, 28, 2, 28);
+
+    pop();
   }
 
   hits(balloon) {
-    // Horizontal check
     if (abs(this.x - balloon.x) >= balloon.r + this.w / 2) return false;
-    // Check the full bullet beam: from tip (this.y) all the way down to the floor.
-    // This matches the visual and prevents fast-moving balloons from slipping through.
     const beamBottom = canvasH - FLOOR_H;
     return balloon.y + balloon.r > this.y && balloon.y - balloon.r < beamBottom;
   }
