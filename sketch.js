@@ -580,6 +580,9 @@ function draw() {
 function updateGame() {
   player.update();
 
+  // Continuous shooting while key held
+  if (keysDown[32] || keysDown[UP_ARROW]) tryShoot();
+
   const speedMult = 0.42 + (level - 1) * 0.10;
 
   // Update balloons
